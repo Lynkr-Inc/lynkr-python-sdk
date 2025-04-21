@@ -85,7 +85,7 @@ class LynkrClient:
             
         return ref_id, Schema(schema_data)
     
-    def toExecuteFormat(self, schema: Schema) -> t.Dict[str, t.Any]:
+    def to_execute_format(self, schema: Schema) -> t.Dict[str, t.Any]:
         """
         Convert schema to a format suitable for execution.
         
