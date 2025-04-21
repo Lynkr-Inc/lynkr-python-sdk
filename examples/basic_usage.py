@@ -1,20 +1,20 @@
 """
-Basic usage example for MyAPI SDK.
+Basic usage example for Lynkr SDK.
 """
 
 import os
 import json
-from myapisdk import Client
-from myapisdk.exceptions import ApiError, ValidationError
+from lynkr.client import LynkrClient
+from lynkr.exceptions import ApiError, ValidationError
 
 # Set API key
-API_KEY = os.environ.get("MYAPI_API_KEY") or "your_api_key_here"
+API_KEY = os.environ.get("LYNKR_API_KEY") or "your_api_key_here"
 
 def main():
     """Run the basic example."""
     
     # Initialize client
-    client = Client(api_key=API_KEY)
+    client = LynkrClient(api_key=API_KEY)
     
     try:
         # Get schema for a request
@@ -26,7 +26,7 @@ def main():
         print(f"Schema: {schema.to_json()}")
         
         # Prepare data according to schema
-        data = {
+        schema_data = {
             "location": "New York City",
             "date_range": "next 7 days",
             "units": "metric",
@@ -34,15 +34,18 @@ def main():
         }
         
         # Validate the data
-        errors = schema.validate(data)
+        errors = schema.validate(schema_data)
         if errors:
             print(f"\nValidation errors: {errors}")
             return
             
         print("\nData is valid. Executing action...")
         
-        # Execute the action
-        result = client.execute_action(ref_id, data)
+        # Execute the action (ref_id is stored in the client from the previous get_schema call)
+        result = client.execute_action(schema_data=schema_data)
+        
+        # Alternatively, you can explicitly provide the ref_id
+        # result = client.execute_action(schema_data=schema_data, ref_id=ref_id)
         
         # Pretty print the result
         print("\nAction result:")

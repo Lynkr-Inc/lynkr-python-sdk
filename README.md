@@ -25,13 +25,14 @@ pip install lynkr
 
 ```python
 import os
-from lynkr import Client
+from lynkr.client import LynkrClient
 
-# Set your API key as an environment variable
-os.environ["LYNKR_API_KEY"] = "your_api_key"
+# Set your API key directly
+client = LynkrClient(api_key="your_api_key")
 
-# Create a client
-client = Client()
+# Or set your API key as an environment variable
+# os.environ["LYNKR_API_KEY"] = "your_api_key"
+# client = LynkrClient()
 
 # Get a schema for a natural language request
 ref_id, schema = client.get_schema("Show me my current orders in my Wealthsimple account")
@@ -41,19 +42,22 @@ print(f"Reference ID: {ref_id}")
 print(f"Required fields: {schema.get_required_fields()}")
 print(f"Schema JSON: {schema.to_json()}")
 
-# Fill in the schema
-payload = {
+# Fill in the schema data
+schema_data = {
     "service_email": "john@example.com",
     "service_password": "veryverysecure",
 }
 
 # Validate the data against the schema
-validation_errors = schema.validate(payload)
+validation_errors = schema.validate(schema_data)
 if validation_errors:
     print(f"Validation errors: {validation_errors}")
 else:
-    # Execute the action with the filled schema
-    result = client.execute_action(ref_id, payload)
+    # Execute the action with the filled schema data
+    # The ref_id from the previous call is stored in the client
+    result = client.execute_action(schema_data=schema_data)
+    # Or, if you want to specify a different ref_id
+    # result = client.execute_action(schema_data=schema_data, ref_id=ref_id)
     print(f"Action result: {result}")
 ```
 
@@ -65,12 +69,19 @@ You can initialize the client by providing your API key directly or by setting i
 
 ```python
 # Option 1: Pass the API key directly
-client = Client(api_key="your_api_key")
+client = LynkrClient(api_key="your_api_key")
 
 # Option 2: Use environment variable
 import os
 os.environ["LYNKR_API_KEY"] = "your_api_key"
-client = Client()
+client = LynkrClient()
+
+# Customize base URL (optional)
+client = LynkrClient(
+    api_key="your_api_key",
+    base_url="https://custom-api.lynkr.ca",
+    timeout=60  # Custom timeout in seconds
+)
 ```
 
 ### Getting a Schema
@@ -85,6 +96,8 @@ The `get_schema` method returns a tuple containing:
 
 - A reference ID string (used for the follow-up execute_action call)
 - A Schema object that provides helper methods to work with the schema
+
+The reference ID is also stored within the client object for convenience.
 
 ### Working with the Schema
 
@@ -117,7 +130,7 @@ Once you have filled in the schema data, you can execute the action:
 
 ```python
 # Fill in the schema with the required data
-data = {
+schema_data = {
     "service_email": "john@example.com",
     "service_password": "veryverysecure",
     "security_id": "sec-s-76a7155242e8477880cbb43269235cb6",
@@ -128,11 +141,14 @@ data = {
     "time_in_force": "day"
 }
 
-# Execute the action
-result = client.execute_action(ref_id, data)
+# Execute the action using the stored ref_id from the previous get_schema call
+result = client.execute_action(schema_data=schema_data)
+
+# Or provide a specific ref_id
+result = client.execute_action(schema_data=schema_data, ref_id="custom_ref_id")
 
 # Process the result
-print(f"Resulting Action: {result}")
+print(f"Result: {result}")
 ```
 
 ## Error Handling
@@ -140,11 +156,11 @@ print(f"Resulting Action: {result}")
 The SDK uses custom exceptions to provide clear error messages:
 
 ```python
-from lynkr import Client
+from lynkr.client import LynkrClient
 from lynkr.exceptions import ApiError, ValidationError
 
 try:
-    client = Client(api_key="invalid_key")
+    client = LynkrClient(api_key="invalid_key")
     ref_id, schema = client.get_schema("Some request")
 except ValidationError as e:
     print(f"Validation error: {e}")
@@ -159,10 +175,67 @@ except ApiError as e:
 Set a custom timeout for API requests:
 
 ```python
-client = Client(
+client = LynkrClient(
     api_key="your_api_key",
     timeout=60  # 60 seconds
 )
+```
+
+### Custom Base URL
+
+Use a different API endpoint:
+
+```python
+client = LynkrClient(
+    api_key="your_api_key",
+    base_url="https://staging-api.lynkr.ca"
+)
+```
+
+## Complete Example
+
+Here's a complete example showing a full workflow:
+
+```python
+from lynkr.client import LynkrClient
+from lynkr.exceptions import ApiError, ValidationError
+
+# Initialize client
+client = LynkrClient(api_key="your_api_key")
+
+try:
+    # Get schema for sending an email
+    ref_id, schema = client.get_schema("I want to send an email")
+
+    # Print schema details
+    print(f"Required fields: {schema.get_required_fields()}")
+
+    # Prepare data
+    schema_data = {
+        "x-api-key": "your_email_provider_api_key",
+        "sender_address": "noreply@example.com",
+        "receiver_address": "recipient@example.com",
+        "subject": "Hello from Lynkr SDK",
+        "html": "<p>This is a test email sent using the Lynkr SDK</p>"
+    }
+
+    # Validate data
+    errors = schema.validate(schema_data)
+    if errors:
+        print(f"Validation errors: {errors}")
+    else:
+        # Execute the action
+        response = client.execute_action(schema_data=schema_data)
+        print(f"Email sent successfully: {response}")
+
+except ValidationError as e:
+    print(f"Validation error: {e}")
+except ApiError as e:
+    print(f"API error: {e}")
+    if e.status_code:
+        print(f"Status code: {e.status_code}")
+    if e.response:
+        print(f"Response details: {e.response}")
 ```
 
 ## License
