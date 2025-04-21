@@ -4,12 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lynkr"
-version = "0.1.0"
+version = "0.1.1"
 description = "Official Python SDK for Lynkr"
 readme = "README.md"
 authors = [
-    {name = "Umer Kazi", email = "ukazi@lynkr.ca"},
-    {name = "Batuhan Aktan", email = "baktan@lynkr.ca"}
+    {name = "Lynkr Inc.", email = "info@lynkr.ca"},
 ]
 license = {text = "MIT"}
 classifiers = [
