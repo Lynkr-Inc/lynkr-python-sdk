@@ -1,0 +1,6 @@
+/src/lynkr/__pycache__
+/tests/__pycache__
+/src/lynkr/utils/__pycache__
+src/lynkr.egg-info/PKG-INFO
+/src/lynkr.egg-info
+.coverage

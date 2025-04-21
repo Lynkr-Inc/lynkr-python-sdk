@@ -71,7 +71,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 python_classes = "Test*"
-addopts = "--cov=myapisdk --cov-report=term-missing"
+addopts = "--cov=lynkr --cov-report=term-missing"
 
 [tool.setuptools.packages.find]
 where = ["src"]
