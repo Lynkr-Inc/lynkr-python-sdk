@@ -48,7 +48,7 @@ class Schema:
         Returns:
             List of required field names
         """
-        return self._schema.get("required", [])
+        return self._schema.get("required_fields", [])
     
     def get_field_type(self, field_name: str) -> t.Optional[str]:
         """
@@ -60,9 +60,35 @@ class Schema:
         Returns:
             Type of the field or None if field not found
         """
-        properties = self._schema.get("properties", {})
-        field = properties.get(field_name, {})
+        fields = self._schema.get("fields", {})
+        field = fields.get(field_name, {})
         return field.get("type")
+    
+    def is_sensitive_field(self, field_name: str) -> bool:
+        """
+        Check if a field is marked as sensitive.
+        
+        Args:
+            field_name: Name of the field
+            
+        Returns:
+            True if field is sensitive, False otherwise
+        """
+        sensitive_fields = self._schema.get("sensitive_fields", [])
+        return field_name in sensitive_fields
+    
+    def is_optional_field(self, field_name: str) -> bool:
+        """
+        Check if a field is optional.
+        
+        Args:
+            field_name: Name of the field
+            
+        Returns:
+            True if field is optional, False otherwise
+        """
+        optional_fields = self._schema.get("optional_fields", [])
+        return field_name in optional_fields
     
     def validate(self, data: t.Dict[str, t.Any]) -> t.List[str]:
         """
@@ -82,10 +108,10 @@ class Schema:
                 errors.append(f"Missing required field: {field}")
         
         # Validate field types
-        properties = self._schema.get("properties", {})
+        fields = self._schema.get("fields", {})
         for field_name, field_value in data.items():
-            if field_name in properties:
-                field_schema = properties[field_name]
+            if field_name in fields:
+                field_schema = fields[field_name]
                 field_type = field_schema.get("type")
                 
                 # Basic type validation

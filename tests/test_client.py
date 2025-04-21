@@ -1,45 +1,44 @@
 """
-Tests for the Client class.
+Tests for the LynkrClient class.
 """
 
 import pytest
 import json
 import responses
-from urllib.parse import urlencode
+from urllib.parse import urljoin
 
-from lynkr import Client
+from lynkr.client import LynkrClient
 from lynkr.exceptions import ApiError, ValidationError
 
 
-class TestClient:
-    """Tests for the Client class."""
+class TestLynkrClient:
+    """Tests for the LynkrClient class."""
 
     def test_init_with_api_key(self, api_key):
         """Test initializing with API key parameter."""
-        client = Client(api_key=api_key)
+        client = LynkrClient(api_key=api_key)
         assert client.api_key == api_key
 
     def test_init_without_api_key(self, monkeypatch):
         """Test initializing with API key from environment."""
-        monkeypatch.setenv("MYAPI_API_KEY", "env_api_key")
-        client = Client()
+        monkeypatch.setenv("LYNKR_API_KEY", "env_api_key")
+        client = LynkrClient()
         assert client.api_key == "env_api_key"
 
     def test_init_missing_api_key(self, monkeypatch):
         """Test initializing without API key raises error."""
-        monkeypatch.delenv("MYAPI_API_KEY", raising=False)
+        monkeypatch.delenv("LYNKR_API_KEY", raising=False)
         with pytest.raises(ValueError) as excinfo:
-            Client()
+            LynkrClient()
         assert "API key is required" in str(excinfo.value)
 
     def test_get_schema(self, client, mock_responses, schema_response, base_url):
         """Test get_schema method."""
         request_string = "Create a new user"
-        params = {"request": request_string}
-        url = f"{base_url}/api/v0/schema/?{urlencode(params)}"
+        url = urljoin(base_url, "/api/v0/schema")
         
         mock_responses.add(
-            responses.GET,
+            responses.POST,
             url,
             json=schema_response,
             status=200
@@ -49,6 +48,11 @@ class TestClient:
         
         assert ref_id == schema_response["ref_id"]
         assert schema.to_dict() == schema_response["schema"]
+        
+        # Check request payload
+        request = mock_responses.calls[0].request
+        payload = json.loads(request.body)
+        assert payload["query"] == request_string
 
     def test_get_schema_validation_error(self, client):
         """Test get_schema with invalid input."""
@@ -59,8 +63,7 @@ class TestClient:
     def test_get_schema_api_error(self, client, mock_responses, base_url):
         """Test get_schema with API error response."""
         request_string = "Create a new user"
-        params = {"request": request_string}
-        url = f"{base_url}/api/v0/schema/?{urlencode(params)}"
+        url = urljoin(base_url, "/api/v0/schema")
         
         error_response = {
             "error": "invalid_request",
@@ -68,7 +71,7 @@ class TestClient:
         }
         
         mock_responses.add(
-            responses.GET,
+            responses.POST,
             url,
             json=error_response,
             status=400
@@ -76,14 +79,26 @@ class TestClient:
         
         with pytest.raises(ApiError) as excinfo:
             client.get_schema(request_string)
-        assert "Invalid request format" in str(excinfo.value)
+        assert "Invalid response format from API" in str(excinfo.value)
+
+    def test_toExecuteFormat(self, client, schema_response):
+        """Test toExecuteFormat method."""
+        from lynkr.schema import Schema
+        
+        schema = Schema(schema_response["schema"])
+        result = client.toExecuteFormat(schema)
+        
+        assert "schema" in result
+        assert result["schema"] == schema_response["schema"]
 
     def test_execute_action(self, client, mock_responses, execute_response, base_url):
         """Test execute_action method."""
-        ref_id = "ref_123456789"
-        data = {"name": "Test User", "email": "test@example.com"}
+        # Set up the ref_id in the client
+        client.ref_id = "ref_123456789"
         
-        url = f"{base_url}/api/v0/execute/"
+        schema_data = {"name": "Test User"}
+        
+        url = urljoin(base_url, "/api/v0/execute")
         
         mock_responses.add(
             responses.POST,
@@ -92,22 +107,57 @@ class TestClient:
             status=200
         )
         
-        result = client.execute_action(ref_id, data)
+        result = client.execute_action(schema_data=schema_data)
         
         assert result == execute_response
         
         # Check request payload
         request = mock_responses.calls[0].request
         payload = json.loads(request.body)
-        assert payload["ref_id"] == ref_id
-        assert payload["data"] == data
+        assert payload["ref_id"] == "ref_123456789"
+        assert "schema" in payload
+        assert "fields" in payload["schema"]
+        assert payload["schema"]["fields"]["name"]["value"] == "Test User"
+
+    def test_execute_action_with_explicit_ref_id(self, client, mock_responses, execute_response, base_url):
+        """Test execute_action with explicit ref_id."""
+        schema_data = {"name": "Test User"}
+        explicit_ref_id = "explicit_ref_id"
+        
+        url = urljoin(base_url, "/api/v0/execute")
+        
+        mock_responses.add(
+            responses.POST,
+            url,
+            json=execute_response,
+            status=200
+        )
+        
+        result = client.execute_action(schema_data=schema_data, ref_id=explicit_ref_id)
+        
+        assert result == execute_response
+        
+        # Check request payload
+        request = mock_responses.calls[0].request
+        payload = json.loads(request.body)
+        assert payload["ref_id"] == explicit_ref_id
+
+    def test_execute_action_without_ref_id(self, client):
+        """Test execute_action with no ref_id."""
+        schema_data = {"name": "Test User"}
+        
+        # Ensure client has no ref_id
+        client.ref_id = None
+        
+        result = client.execute_action(schema_data=schema_data)
+        
+        assert "error" in result
+        assert "ref_id is required" in result["error"]
 
     def test_execute_action_validation_error(self, client):
         """Test execute_action with invalid input."""
-        with pytest.raises(ValidationError) as excinfo:
-            client.execute_action("", {})
-        assert "ref_id must be a non-empty string" in str(excinfo.value)
+        client.ref_id = "ref_123456789"
         
         with pytest.raises(ValidationError) as excinfo:
-            client.execute_action("ref_id", "")
+            client.execute_action(schema_data="")
         assert "schema_data must be a non-empty dictionary" in str(excinfo.value)

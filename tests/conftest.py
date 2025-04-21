@@ -5,7 +5,7 @@ Test fixtures for Lynkr SDK tests.
 import json
 import pytest
 import responses
-from lynkr import Client
+from lynkr.client import LynkrClient
 
 
 @pytest.fixture
@@ -17,13 +17,13 @@ def api_key():
 @pytest.fixture
 def base_url():
     """Return a test base URL."""
-    return "http://localhost:8000"
+    return "https://api.lynkr.com"
 
 
 @pytest.fixture
 def client(api_key, base_url):
     """Return a configured client instance."""
-    return Client(api_key=api_key, base_url=base_url)
+    return LynkrClient(api_key=api_key, base_url=base_url)
 
 
 @pytest.fixture
@@ -39,29 +39,25 @@ def schema_response():
     return {
         "ref_id": "ref_123456789",
         "schema": {
-            "type": "object",
-            "required": ["name", "email"],
-            "properties": {
+            "fields": {
                 "name": {
                     "type": "string",
-                    "description": "User's full name"
+                    "description": "User's full name",
+                    "optional": False,
+                    "sensitive": False,
                 },
-                "email": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "User's email address"
-                },
-                "role": {
-                    "type": "string",
-                    "enum": ["admin", "user", "guest"],
-                    "description": "User's role"
-                },
-                "active": {
-                    "type": "boolean",
-                    "description": "Whether the user is active"
-                }
-            }
-        }
+            },
+            "required_fields": ["name"],
+            "optional_fields": [],
+            "sensitive_fields": [],
+        },
+        "metadata": {
+            "service": "service_name",
+            "resource": "resource_name",
+            "method": "POST",
+            "confidence": "high",
+            "not_found_reason": "null",
+        },
     }
 
 
@@ -69,10 +65,15 @@ def schema_response():
 def execute_response():
     """Return a sample execute response."""
     return {
-        "success": True,
-        "message": "Action executed successfully",
+        "status": "success",
         "data": {
-            "user_id": "usr_987654321",
-            "created_at": "2023-04-15T12:30:45Z"
-        }
+            "details": {
+                "success": True,
+                "data": {
+                    "id": "fb2644f9-fe14-420e-b4b2-bb20bf240250"
+                },
+                "error": "null"
+            }
+        },
+        "error": "null"
     }
