@@ -27,6 +27,7 @@ keywords = ["api", "sdk", "client"]
 requires-python = ">=3.8"
 dependencies = [
     "requests>=2.25.0",
+    "langchain",
 ]
 
 [project.urls]

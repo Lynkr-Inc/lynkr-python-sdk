@@ -9,6 +9,8 @@ from urllib.parse import urljoin
 from .utils.http import HttpClient
 from .exceptions import ApiError, ValidationError
 from .schema import Schema
+from langchain.agents import tool
+
 
 
 class LynkrClient:
@@ -28,7 +30,8 @@ class LynkrClient:
         self, 
         api_key: str = None, 
         base_url: str = "http://api.lynkr.ca",
-        timeout: int = 30
+        timeout: int = 30,
+        keys: t.Optional[t.Dict[str, str]] = None,
     ):
         self.api_key = api_key or os.environ.get("LYNKR_API_KEY")
         if not self.api_key:
@@ -39,6 +42,7 @@ class LynkrClient:
         self.base_url = base_url
         self.ref_id = None
         self.http_client = HttpClient(timeout=timeout)
+        self.keys = keys
     
     def get_schema(self, request_string: str) -> t.Tuple[str, Schema]:
         """
@@ -80,11 +84,16 @@ class LynkrClient:
 
         schema_data = response.get("schema")
         
+        service = response.get("metadata")["service"]
+
         if not ref_id or not schema_data:
             raise ApiError("Invalid response format from API")
-            
-        return ref_id, Schema(schema_data)
-    
+        
+        if service in self.keys:
+            return {"ref_id": ref_id, "Schema": Schema(schema_data), "sensitive_fields": "Sensitive fields are defined in the client"}
+        else:
+            return {"ref_id": ref_id, "Schema": Schema(schema_data), "sensitive_fields": "Sensitive fields are needed to be defined by the user"}
+        
     def to_execute_format(self, schema: Schema) -> t.Dict[str, t.Any]:
         """
         Convert schema to a format suitable for execution.
@@ -150,3 +159,105 @@ class LynkrClient:
         )
         
         return response
+    
+    def langchain_tools(self, api_keys: t.Optional[t.Dict[str, str]] = None):
+        """
+        Get a schema for a given request string using LangChain.
+        
+        Args:
+            request_string: Natural language description of the request
+            
+        Returns:
+            Tuple containing (ref_id, schema)
+            
+        Raises:
+            ApiError: If the API returns an error
+            ValidationError: If the input is invalid
+        """
+        @tool
+        def get_schema(request_string: str):
+            """
+            Use this tool when you need to convert a natural language request into a structured schema.
+            
+            This tool helps you obtain the appropriate data structure or schema needed to fulfill a user's request.
+            Call this tool whenever you:
+            - Need to understand what fields/parameters are required for a specific operation
+            - Want to convert a user's natural language request into a structured format
+            - Need to determine the expected format for submitting data
+            
+            Your request_string should be a single, specific sentence clearly stating exactly what schema you need.
+            For best results, be precise about the specific action or data type you're working with.
+            
+            Examples of good request strings:
+            - "I need the schema for creating a new user account"
+            - "Get me the schema for processing a payment transaction"
+            - "Show me the data structure required for booking a flight"
+            
+            Args:
+                request_string: A clear, specific natural language description of what schema you need
+            
+            Returns:
+                A structured schema matching your request
+            """
+            try:
+                ref_id, schema, meta_data = self.get_schema(request_string)
+
+                return ref_id, schema, meta_data
+
+            except Exception as e:
+                return f"Error: {str(e)}"
+
+        @tool
+        def execute_schema(schema_data: dict, ref_id: str = None):
+            """
+            Use this tool to execute actions based on a schema obtained from get_schema().
+            
+            This tool takes a schema (typically obtained from a previous get_schema call) and executes it
+            after filling in any missing information through conversations with the user or by using other tools.
+            
+            Call this tool when:
+            - You have obtained a schema and need to execute the corresponding action
+            - You have gathered all necessary information to complete a user's request
+            - You need to submit structured data to perform an operation
+            
+            The process typically follows these steps:
+            1. First call get_schema() to obtain the required schema structure
+            2. Gather any missing information by either:
+            - Asking the user directly for specific inputs
+            - Using other available tools to retrieve the required data
+            3. Call this execute_schema() tool with the complete information
+            
+            Args:
+                schema: The schema structure (dictionary) obtained from get_schema()
+                user_input: Optional dictionary containing user-provided values to fill the schema
+                        (If not provided, the tool will attempt to gather missing information)
+            
+            Returns:
+                The result of executing the action defined by the filled schema
+            
+            Note: If the schema cannot be completely filled with available information, this tool will
+            automatically engage with the user to request the missing details before execution.
+            """
+            try:
+
+                validation_errors = schema_data.validate(schema_data)
+                if validation_errors:
+                    print(f"Validation errors: {validation_errors}")
+                else:
+                    # Execute the action with the filled schema data
+                    # The ref_id from the previous call is stored in the client
+                    # for subsequent calls, so you can just call execute_action
+                    # result = lynkr_client.execute_action(schema_data=schema_data)
+                    # Or, if you want to specify a different ref_id
+                    result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
+                    print(f"Action result: {result}")
+            except Exception as e:
+                return f"Error: {str(e)}"
+            
+        return [get_schema, execute_schema]
+    
+    def required_authentication(self):
+        return {"Resend" : {"api-key": "1231231231"}}
+    
+    def create_authentication(self, auth_data: t.Dict[str, str]):
+        print(auth_data)
