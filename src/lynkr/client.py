@@ -41,8 +41,19 @@ class LynkrClient:
         self.base_url = base_url
         self.ref_id = None
         self.http_client = HttpClient(timeout=timeout)
-        self.keys = KeyManager()
-    
+        self.keys = {}
+    def add_key(self, name: str, field_name: str, value: str):
+        """
+        Add or update a single credential field under a service.
+        If the service doesn't exist yet, create it.
+        If the field already exists, this will overwrite it with the new value.
+        """
+        # 1) create the service dict if needed
+        svc = self.keys.setdefault(name, {})
+
+        # 2) assign (or overwrite) the field
+        svc[field_name] = value
+        
     def get_schema(self, request_string: str) -> t.Tuple[str, Schema]:
         """
         Get a schema for a given request string.
@@ -67,9 +78,9 @@ class LynkrClient:
             "Content-Type": "application/json"
         }
         
-        body = {
-            "query": request_string
-        }
+        body={
+                "query": request_string
+            }
         
         response = self.http_client.post(
             url=endpoint,
@@ -83,17 +94,13 @@ class LynkrClient:
 
         schema_data = response.get("schema")
         
+        service = response.get("metadata")["service"]
+
         if not ref_id or not schema_data:
             raise ApiError("Invalid response format from API")
-            
-        # Create the schema object
-        schema = Schema(schema_data)
         
-        # Store the metadata for later use, if available
-        self.last_metadata = response.get("metadata", {})
+        return ref_id,  Schema(schema_data), service
         
-        return ref_id, schema
-    
     def to_execute_format(self, schema: Schema) -> t.Dict[str, t.Any]:
         """
         Convert schema to a format suitable for execution.
@@ -108,19 +115,13 @@ class LynkrClient:
             "schema": schema.to_dict()
         }
     
-    def execute_action(
-        self, 
-        schema_data: t.Dict[str, t.Any], 
-        ref_id: t.Optional[str] = None,
-        auto_fill_keys: bool = True
-    ) -> t.Dict[str, t.Any]:
+    def execute_action(self, schema_data: t.Dict[str, t.Any], ref_id: t.Optional[str] = None) -> t.Dict[str, t.Any]:
         """
         Execute an action using the provided schema data.
         
         Args:
+            ref_id: Reference ID returned from get_schema default set to most recent get_schema call
             schema_data: Filled schema data according to the schema structure
-            ref_id: Reference ID returned from get_schema, default set to most recent get_schema call
-            auto_fill_keys: Whether to automatically fill missing fields with stored API keys
             
         Returns:
             Dict containing the API response
@@ -129,7 +130,7 @@ class LynkrClient:
             ApiError: If the API returns an error
             ValidationError: If the input is invalid
         """
-            
+ 
         if ref_id is None and self.ref_id is None:
             return {
                 "error": "ref_id is required to execute an action"
@@ -137,31 +138,9 @@ class LynkrClient:
         else:
             ref_id = ref_id or self.ref_id
 
+
         if not schema_data or not isinstance(schema_data, dict):
             raise ValidationError("schema_data must be a non-empty dictionary")
-        
-        # Auto-fill keys if enabled - try to detect the service from metadata
-        if auto_fill_keys and hasattr(self, 'keys'):
-            # If we have metadata from the last get_schema call, use it to identify the service
-            service = getattr(self, 'last_metadata', {}).get('service')
-            
-            # Default fill using known field mappings
-            updated_schema_data = self.keys.match_keys_to_schema(
-                schema_data, 
-                schema_data.get('required_fields', [])
-            )
-            
-            # If we know the service, use it for more specific mapping
-            if service and hasattr(self.keys, '_keys') and service.lower() in self.keys._keys:
-                service_key = self.keys._keys.get(service.lower())
-                for field_name in schema_data.get('required_fields', []):
-                    # Check if this field is likely an API key field
-                    if any(key_term in field_name.lower() for key_term in ['api_key', 'apikey', 'key', 'token', 'auth']):
-                        updated_schema_data[field_name] = service_key
-            
-            schema_data = updated_schema_data
-
-            print(f"Auto-filled schema data: {schema_data}")
         
         schema_payload = {
             "fields": { k: { "value": v } for k, v in schema_data.items() }
@@ -174,6 +153,7 @@ class LynkrClient:
             "Content-Type": "application/json"
         }
         
+
         payload = {
             "ref_id": ref_id,
             "schema": schema_payload
@@ -189,118 +169,101 @@ class LynkrClient:
     
     def langchain_tools(self) -> list:
         """
-        Get LangChain tools for interacting with Lynkr.
+        Get a schema for a given request string using LangChain.
         
+        Args:
+            request_string: Natural language description of the request
+            
         Returns:
-            List of LangChain tools
+            Tuple containing (ref_id, schema)
+            
+        Raises:
+            ApiError: If the API returns an error
+            ValidationError: If the input is invalid
         """
         @tool
         def get_schema(request_string: str):
             """
-            Get a schema for a natural language request.
+            Use this tool when you need to convert a natural language request into a structured schema.
             
-            This tool helps you understand what fields/parameters are required for a specific operation.
-            Use this tool when you need to:
-            - Convert a natural language request into a structured format
-            - Determine what information is needed to fulfill a user's request
-            - Find out the required fields for an action
+            This tool helps you obtain the appropriate data structure or schema needed to fulfill a user's request.
+            Call this tool whenever you:
+            - Need to understand what fields/parameters are required for a specific operation
+            - Want to convert a user's natural language request into a structured format
+            - Need to determine the expected format for submitting data
             
-            Examples:
-            - "Get the schema for sending an email"
-            - "What information is needed to check my bank balance"
-            - "Show me fields required for ordering food delivery"
+            Your request_string should be a single, specific sentence clearly stating exactly what schema you need.
+            For best results, be precise about the specific action or data type you're working with.
+            
+            Examples of good request strings:
+            - "I need the schema for creating a new user account"
+            - "Get me the schema for processing a payment transaction"
+            - "Show me the data structure required for booking a flight"
             
             Args:
-                request_string: A clear, specific description of what you want to do
+                request_string: A clear, specific natural language description of what schema you need
             
             Returns:
-                Information about the required fields and reference ID for the action
+                A structured schema matching your request
             """
             try:
-                ref_id, schema = self.get_schema(request_string)
-                
-                # Get details about the schema
-                required_fields = schema.get_required_fields()
-                optional_fields = schema._schema.get('optional_fields', [])
-                sensitive_fields = schema._schema.get('sensitive_fields', [])
-                
-                # Check if we have API keys for the sensitive fields
-                has_keys_for = []
-                missing_keys_for = []
-                
-                for field in sensitive_fields:
-                    # Check if we have a key that matches this field
-                    field_matched = False
-                    for key_name in self.keys._keys:
-                        mappings = self.keys.get_field_mappings(key_name)
-                        if field in mappings or field == key_name:
-                            has_keys_for.append(field)
-                            field_matched = True
-                            break
-                    
-                    if not field_matched:
-                        missing_keys_for.append(field)
-                
-                # Store the ref_id for later use
-                self.ref_id = ref_id
-                
-                # Return useful information for the agent
-                return {
-                    "ref_id": ref_id,
-                    "required_fields": required_fields,
-                    "optional_fields": optional_fields,
-                    "sensitive_fields": sensitive_fields,
-                    "has_keys_for": has_keys_for,
-                    "missing_keys_for": missing_keys_for,
-                    "schema_json": schema.to_json()
-                }
-
+                ref_id, schema, service = self.get_schema(request_string)
+                if service not in self.keys:
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key"}
+                else: 
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided."}
+           
             except Exception as e:
                 return f"Error: {str(e)}"
 
         @tool
-        def execute_action(schema_data: dict, ref_id: str = None):
+        def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
             """
-            Execute an action with the provided schema data.
+            Use this tool to execute actions based on a schema obtained from get_schema().
             
-            Use this tool after getting a schema and filling in the required fields.
-            This tool will:
-            - Automatically fill in API keys if they're available
-            - Submit the action for execution
-            - Return the results
+            This tool takes a schema (typically obtained from a previous get_schema call) and executes it
+            after filling in any missing information through conversations with the user or by using other tools.
+            
+            Call this tool when:
+            - You have obtained a schema and need to execute the corresponding action
+            - You have gathered all necessary information to complete a user's request
+            - You need to submit structured data to perform an operation
+            
+            The process typically follows these steps:
+            1. First call get_schema() to obtain the required schema structure
+            2. Gather any missing information by either:
+            - Asking the user directly for specific inputs
+            - Using other available tools to retrieve the required data
+            3. Call this execute_schema() tool with the complete information
             
             Args:
-                schema_data: Dictionary containing the field values for the action
-                ref_id: Optional reference ID from a previous get_schema call
-                       (if not provided, the most recent ref_id will be used)
-            
+                schema: The schema structure (dictionary) obtained from get_schema() filled with the information based on the schema guidelines and the user
+                ref_id: The reference ID from the previous get_schema call (optional)
+                service: The service name to use for filling in the schema data
             Returns:
-                The result of executing the action
+                The result of executing the action defined by the filled schema
+            
+            Note: If the schema cannot be completely filled with available information, this tool will
+            automatically engage with the user to request the missing details before execution.
             """
             try:
-                # Execute the action with the filled schema data
-                result = self.execute_action(
-                    schema_data=schema_data, 
-                    ref_id=ref_id,
-                    auto_fill_keys=True
-                )
-                return result
+                
+                currentService = self.keys.get(service)
+
+                schema_data = {**schema_data, **currentService}
+                print(schema_data)
+                validation_errors = schema_data.validate(schema_data)
+                if validation_errors:
+                    print(f"Validation errors: {validation_errors}")
+                else:
+                    # Execute the action with the filled schema data
+                    # The ref_id from the previous call is stored in the client
+                    # for subsequent calls, so you can just call execute_action
+                    # result = lynkr_client.execute_action(schema_data=schema_data)
+                    # Or, if you want to specify a different ref_id
+                    result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
+                    print(f"Action result: {result}")
             except Exception as e:
                 return f"Error: {str(e)}"
             
-        @tool
-        def list_api_keys():
-            """
-            List all stored API keys (with masked values for security).
-            
-            Use this tool to see what API keys are currently available for automatic filling.
-            
-            Returns:
-                Dictionary of stored keys with masked values
-            """
-            try:
-                return self.keys.list()
-            except Exception as e:
-                return f"Error listing API keys: {str(e)}"
-                
-        return [get_schema, execute_action, list_api_keys]
+        return [get_schema, execute_schema]
