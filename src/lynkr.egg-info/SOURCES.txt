@@ -11,6 +11,8 @@ src/lynkr.egg-info/SOURCES.txt
 src/lynkr.egg-info/dependency_links.txt
 src/lynkr.egg-info/requires.txt
 src/lynkr.egg-info/top_level.txt
+src/lynkr/keys/__init__.py
+src/lynkr/keys/key_manager.py
 src/lynkr/utils/__init__.py
 src/lynkr/utils/http.py
 src/lynkr/utils/validation.py
