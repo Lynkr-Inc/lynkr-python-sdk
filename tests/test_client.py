@@ -44,10 +44,11 @@ class TestLynkrClient:
             status=200
         )
         
-        ref_id, schema = client.get_schema(request_string)
+        ref_id, schema, service = client.get_schema(request_string)
         
         assert ref_id == schema_response["ref_id"]
         assert schema.to_dict() == schema_response["schema"]
+        assert service == schema_response["metadata"]["service"]
         
         # Check request payload
         request = mock_responses.calls[0].request
