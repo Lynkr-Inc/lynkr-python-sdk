@@ -35,7 +35,7 @@ class LynkrClient:
         self.api_key = api_key or os.environ.get("LYNKR_API_KEY")
         if not self.api_key:
             raise ValueError(
-                "API key is required. Pass it as a parameter or set LYNKR_API_KEY environment variable."
+                "API key is required. Pass it as a parameter to this method or set LYNKR_API_KEY environment variable."
             )
         
         self.base_url = base_url
