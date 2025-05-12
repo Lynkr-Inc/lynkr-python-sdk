@@ -54,7 +54,7 @@ class LynkrClient:
         # 2) assign (or overwrite) the field
         svc[field_name] = value
         
-    def get_schema(self, request_string: str) -> t.Tuple[str, Schema]:
+    def get_schema(self, request_string: str) -> t.Tuple[str, Schema, str]:
         """
         Get a schema for a given request string.
         
