@@ -1,4 +1,5 @@
 requests>=2.25.0
+langchain
 
 [dev]
 pytest>=7.0.0
