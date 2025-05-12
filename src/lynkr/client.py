@@ -23,7 +23,7 @@ class LynkrClient:
     Args:
         api_key: API key for authentication
         base_url: Base URL for the API (defaults to http://api.lynkr.ca)
-        timeout: Request timeout in seconds
+        timeout: Request timeout in seconds (default is 30)
     """
     
     def __init__(
