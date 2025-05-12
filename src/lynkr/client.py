@@ -181,8 +181,8 @@ class LynkrClient:
             ApiError: If the API returns an error
             ValidationError: If the input is invalid
         """
-        @tool
-        def get_schema(request_string: str):
+        
+        async def get_schema(request_string: str):
             """
             Use this tool when you need to convert a natural language request into a structured schema.
             
@@ -216,8 +216,7 @@ class LynkrClient:
             except Exception as e:
                 return f"Error: {str(e)}"
 
-        @tool
-        def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
+        async def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
             """
             Use this tool to execute actions based on a schema obtained from get_schema().
             
