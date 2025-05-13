@@ -302,18 +302,8 @@ class LynkrClient:
                 currentService = self.keys.get(service)
 
                 schema_data = {**schema_data, **currentService}
-                print(schema_data)
-                validation_errors = schema_data.validate(schema_data)
-                if validation_errors:
-                    print(f"Validation errors: {validation_errors}")
-                else:
-                    # Execute the action with the filled schema data
-                    # The ref_id from the previous call is stored in the client
-                    # for subsequent calls, so you can just call execute_action
-                    # result = lynkr_client.execute_action(schema_data=schema_data)
-                    # Or, if you want to specify a different ref_id
-                    result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
-                    print(f"Action result: {result}")
+                result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
+                return {"Result": result}
             except Exception as e:
                 return f"Error: {str(e)}"
         tools = [
