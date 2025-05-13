@@ -2,6 +2,7 @@
 Client module provides the main interface to the API.
 """
 
+import json
 import os
 import typing as t
 from urllib.parse import urljoin
@@ -183,7 +184,7 @@ class LynkrClient:
             ValidationError: If the input is invalid
         """
         
-        def get_minimum_schema(data: str, include_sensitive: Bool = False):
+        def get_minimum_schema(data: str, include_sensitive: bool = False):
             """
             Use this tool when you need to convert a natural language request into a structured schema.
             
