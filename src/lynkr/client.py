@@ -11,8 +11,8 @@ from .exceptions import ApiError, ValidationError
 from .schema import Schema
 from .keys.key_manager import KeyManager
 from langchain.agents import tool
+from langchain_core.tools.structured import StructuredTool
 
-import json
 
 class LynkrClient:
     """
@@ -182,19 +182,32 @@ class LynkrClient:
             ApiError: If the API returns an error
             ValidationError: If the input is invalid
         """
-        def build_min_required(data, include_sensitive=False):
+        
+        def get_minimum_schema(data: str, include_sensitive: Bool = False):
             """
-            Build a JSON payload containing all required fields.
+            Use this tool when you need to convert a natural language request into a structured schema.
+            
+            This tool helps you obtain the appropriate data structure or schema needed to fulfill a user's request.
+            Call this tool whenever you:
+            - Need to understand what fields/parameters are required for a specific operation
+            - Want to convert a user's natural language request into a structured format
+            - Need to determine the expected format for submitting data
+            
+            Your request_string should be a single, specific sentence clearly stating exactly what schema you need.
+            For best results, be precise about the specific action or data type you're working with.
+            
+            Examples of good request strings:
+            - "I need the schema for creating a new user account"
+            - "Get me the schema for processing a payment transaction"
+            - "Show me the data structure required for booking a flight"
             
             Args:
-                data (dict): Input dict containing 'ref_id', 'schema', 'service', etc.
-                include_sensitive (bool): If True, include sensitive fields; otherwise skip them.
-
+                request_string: A clear, specific natural language description of what schema you need
+            
             Returns:
                 str: Pretty-printed JSON string of the minimal required payload.
             """
             schema_d = data.__dict__["_schema"]
-            print("SCHEMAD", schema_d)
             fields    = schema_d.get("fields", {})
             required  = schema_d.get("required_fields", []) or schema_d.get("required", [])
             sensitive = set(schema_d.get("sensitive_fields", []))
@@ -224,7 +237,7 @@ class LynkrClient:
             return json.dumps(payload, indent=2)
         # ——— Example usage ———
 
-        async def get_schema(request_string: str):
+        def get_schema(request_string: str):
             """
             get_schema(request_string: str) -> dict
 
@@ -247,28 +260,41 @@ class LynkrClient:
             try:
                 ref_id, schema, service = self.get_schema(request_string)
                 if service not in self.keys:
-                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key", "schema_example": build_min_required(schema, True)}
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key", "minimum_required": get_minimum_schema(schema, True)}
                 else: 
-                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided.", "schema_example": build_min_required(schema)}
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided.", "minimum_required": get_minimum_schema(schema)}
            
             except Exception as e:
                 return f"Error: {str(e)}"
 
-        async def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
+        def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
             """
-            execute_schema(schema_data: dict, ref_id: str, service: str) -> dict
-
-            Executes a fullypopulated schema against the specified external integration.
-
-            Usage:
-            • Only call this after get_schema has returned and you have merged in all required keys.
-            • Input:
-                schema_data: { field1: value1, field2: value2, …, api_key: "SECRET", … }
-                ref_id:      "<ID from get_schema>"
-                service:     "<service name from get_schema>"
-            • Returns the raw API response, e.g.
-                { "status": "success", "messageId": "XYZ789", … }
-            • After calling this, you must emit a final userfriendly confirmation and stop.
+            Use this tool to execute actions based on a schema obtained from get_schema().
+            
+            This tool takes a schema (typically obtained from a previous get_schema call) and executes it
+            after filling in any missing information through conversations with the user or by using other tools.
+            
+            Call this tool when:
+            - You have obtained a schema and need to execute the corresponding action
+            - You have gathered all necessary information to complete a user's request
+            - You need to submit structured data to perform an operation
+            
+            The process typically follows these steps:
+            1. First call get_schema() to obtain the required schema structure
+            2. Gather any missing information by either:
+            - Asking the user directly for specific inputs
+            - Using other available tools to retrieve the required data
+            3. Call this execute_schema() tool with the complete information
+            
+            Args:
+                schema: The schema structure (dictionary) obtained from get_schema() filled with the information based on the schema guidelines and the user
+                ref_id: The reference ID from the previous get_schema call (optional)
+                service: The service name to use for filling in the schema data
+            Returns:
+                The result of executing the action defined by the filled schema
+            
+            Note: If the schema cannot be completely filled with available information, this tool will
+            automatically engage with the user to request the missing details before execution.
             """
             try:
                 
@@ -276,15 +302,29 @@ class LynkrClient:
 
                 schema_data = {**schema_data, **currentService}
                 print(schema_data)
-                # Execute the action with the filled schema data
-                # The ref_id from the previous call is stored in the client
-                # for subsequent calls, so you can just call execute_action
-                # result = lynkr_client.execute_action(schema_data=schema_data)
-                # Or, if you want to specify a different ref_id
-                result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
-                print(f"Action result: {result}")
-                return {"result": result}
+                validation_errors = schema_data.validate(schema_data)
+                if validation_errors:
+                    print(f"Validation errors: {validation_errors}")
+                else:
+                    # Execute the action with the filled schema data
+                    # The ref_id from the previous call is stored in the client
+                    # for subsequent calls, so you can just call execute_action
+                    # result = lynkr_client.execute_action(schema_data=schema_data)
+                    # Or, if you want to specify a different ref_id
+                    result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
+                    print(f"Action result: {result}")
             except Exception as e:
                 return f"Error: {str(e)}"
-            
-        return [get_schema, execute_schema]
+        tools = [
+                    StructuredTool.from_function(
+                        get_schema,
+                        name="get_schema",
+                        description="Translate a single, precise natural-language instruction into a structured schema."
+                    ),
+                    StructuredTool.from_function(
+                        execute_schema,
+                        name="execute_schema",
+                        description="Execute a fully-populated schema against the specified external integration."
+                    ),
+                ] 
+        return tools
