@@ -6,6 +6,7 @@ import json
 import os
 import typing as t
 from urllib.parse import urljoin
+import base64
 
 from .utils.http import HttpClient
 from .exceptions import ApiError, ValidationError
@@ -13,7 +14,8 @@ from .schema import Schema
 from .keys.key_manager import KeyManager
 from langchain.agents import tool
 from langchain_core.tools.structured import StructuredTool
-from .crypto import hybrid_encrypt, load_public_key
+from .crypto import hybrid_encrypt, load_public_key, decrypt_with_aes
+
 
 class LynkrClient:
     """
@@ -24,14 +26,14 @@ class LynkrClient:
     
     Args:
         api_key: API key for authentication
-        base_url: Base URL for the API (defaults to http://api.lynkr.ca)
+        base_url: Base URL for the API (defaults to https://api.lynkr.ca)
         timeout: Request timeout in seconds (default is 30)
     """
     
     def __init__(
         self, 
         api_key: str = None, 
-        base_url: str = "http://api.lynkr.ca",
+        base_url: str = "https://api.lynkr.ca",
         timeout: int = 30,
     ):
         self.api_key = api_key or os.environ.get("LYNKR_API_KEY")
@@ -44,6 +46,7 @@ class LynkrClient:
         self.ref_id = None
         self.http_client = HttpClient(timeout=timeout)
         self.keys = {}
+
     def add_key(self, name: str, field_name: str, value: str):
         """
         Add or update a single credential field under a service.
@@ -155,7 +158,6 @@ class LynkrClient:
             "Content-Type": "application/json"
         }
         
-
         payload = {
             "ref_id": ref_id,
             "schema": schema_payload
@@ -165,15 +167,30 @@ class LynkrClient:
         PUBLIC_KEY_PATH = os.path.join(BASE_DIR, "public_key.pem")
         public_key = load_public_key(PUBLIC_KEY_PATH)  # Adjust as needed
         
-        encrypted_data = hybrid_encrypt(payload, public_key)
+        encrypted_data, aes_key = hybrid_encrypt(payload, public_key)
         
         response = self.http_client.post(
             url=endpoint,
             headers=headers,
             json=encrypted_data
         )
-        
-        return response
+
+        resp_json = response["data"]
+
+        if all(k in resp_json for k in ("payload", "iv", "tag")):
+            ciphertext = base64.b64decode(resp_json["payload"])
+            iv = base64.b64decode(resp_json["iv"])
+            tag = base64.b64decode(resp_json["tag"])
+            plaintext = decrypt_with_aes(ciphertext, aes_key, iv, tag)
+            try:
+                # Usually the server returns JSON as plaintext
+                return json.loads(plaintext.decode())
+            except Exception as e:
+                # Could not decode JSON, return raw plaintext
+                return plaintext
+        else:
+            # Not encrypted, just return the response as usual
+            return resp_json
     
     def langchain_tools(self) -> list:
         """

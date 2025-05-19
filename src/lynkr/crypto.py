@@ -50,5 +50,12 @@ def hybrid_encrypt(payload: dict, public_key):
         "encrypted_key": base64.b64encode(encrypted_key).decode(),
         "iv": base64.b64encode(iv).decode(),
         "tag": base64.b64encode(tag).decode(),
-        "payload": base64.b64encode(ciphertext).decode()
-    }
+        "payload": base64.b64encode(ciphertext).decode(),
+    }, aes_key
+
+def decrypt_with_aes(ciphertext, key, iv, tag):
+    decryptor = Cipher(
+        algorithms.AES(key),
+        modes.GCM(iv, tag)
+    ).decryptor()
+    return decryptor.update(ciphertext) + decryptor.finalize()
