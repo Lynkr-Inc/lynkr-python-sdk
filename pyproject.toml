@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lynkr"
-version = "0.1.6" 
+version = "0.1.7" 
 description = "Official Python SDK for Lynkr"
 readme = "README.md"
 authors = [
@@ -28,6 +28,7 @@ requires-python = ">=3.8"
 dependencies = [
     "requests>=2.25.0",
     "langchain",
+    "cryptography",
 ]
 
 [project.urls]

@@ -13,7 +13,7 @@ from .schema import Schema
 from .keys.key_manager import KeyManager
 from langchain.agents import tool
 from langchain_core.tools.structured import StructuredTool
-
+from .crypto import hybrid_encrypt, load_public_key
 
 class LynkrClient:
     """
@@ -161,10 +161,16 @@ class LynkrClient:
             "schema": schema_payload
         }
         
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        PUBLIC_KEY_PATH = os.path.join(BASE_DIR, "public_key.pem")
+        public_key = load_public_key(PUBLIC_KEY_PATH)  # Adjust as needed
+        
+        encrypted_data = hybrid_encrypt(payload, public_key)
+        
         response = self.http_client.post(
             url=endpoint,
             headers=headers,
-            json=payload
+            json=encrypted_data
         )
         
         return response
@@ -202,7 +208,7 @@ class LynkrClient:
             - "Get me the schema for processing a payment transaction"
             - "Show me the data structure required for booking a flight"
             
-            Args:
+            Args:print(response)
                 request_string: A clear, specific natural language description of what schema you need
             
             Returns:
