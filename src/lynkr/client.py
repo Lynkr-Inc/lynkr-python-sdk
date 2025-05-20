@@ -76,7 +76,7 @@ class LynkrClient:
         if not request_string or not isinstance(request_string, str):
             raise ValidationError("request_string must be a non-empty string")
         
-        endpoint = urljoin(self.base_url, "/api/v0/schema")
+        endpoint = urljoin(self.base_url, "/api/v0/schema/")
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -151,7 +151,7 @@ class LynkrClient:
             "fields": { k: { "value": v } for k, v in schema_data.items() }
         }
         
-        endpoint = urljoin(self.base_url, "/api/v0/execute")
+        endpoint = urljoin(self.base_url, "/api/v0/execute/")
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
