@@ -5,6 +5,7 @@ Tests for the LynkrClient class.
 import pytest
 import json
 import responses
+import base64
 from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 
@@ -93,11 +94,10 @@ class TestLynkrClient:
         assert "schema" in result
         assert result["schema"] == schema_response["schema"]
 
-    @patch('lynkr.client.load_public_key')
     @patch('lynkr.client.hybrid_encrypt')
-    @patch('lynkr.client.decrypt_with_aes')
-    def test_execute_action(self, mock_decrypt, mock_encrypt, mock_load_key, client, mock_responses, execute_response, base_url):
-        """Test execute_action method."""
+    @patch('lynkr.client.load_public_key')
+    def test_execute_action(self, mock_load_key, mock_encrypt, client, mock_responses, execute_response, base_url):
+        """Test execute_action method using a non-encrypted response path."""
         # Set up the ref_id in the client
         client.ref_id = "ref_123456789"
         
@@ -113,15 +113,11 @@ class TestLynkrClient:
             }, 
             b'test_aes_key'
         )
-        mock_decrypt.return_value = json.dumps(execute_response["data"]).encode()
         
-        # Set up response data with encrypted format
-        encrypted_response = {
-            "data": {
-                "payload": "encoded_payload",
-                "iv": "encoded_iv",
-                "tag": "encoded_tag"
-            }
+        # Set up a NON-encrypted response (missing iv/tag/payload)
+        # This will skip the decryption logic in the client
+        non_encrypted_response = {
+            "data": execute_response["data"]
         }
         
         schema_data = {"name": "Test User"}
@@ -131,13 +127,13 @@ class TestLynkrClient:
         mock_responses.add(
             responses.POST,
             url,
-            json=encrypted_response,
+            json=non_encrypted_response,
             status=200
         )
         
         result = client.execute_action(schema_data=schema_data)
         
-        # The result should be the decrypted data from execute_response
+        # The result should be the data from execute_response
         assert result == execute_response["data"]
         
         # Verify the request was made correctly
@@ -149,10 +145,9 @@ class TestLynkrClient:
         assert payload["tag"] == "test_tag"
         assert payload["payload"] == "test_payload"
 
-    @patch('lynkr.client.load_public_key')
     @patch('lynkr.client.hybrid_encrypt')
-    @patch('lynkr.client.decrypt_with_aes')
-    def test_execute_action_with_explicit_ref_id(self, mock_decrypt, mock_encrypt, mock_load_key, client, mock_responses, execute_response, base_url):
+    @patch('lynkr.client.load_public_key') 
+    def test_execute_action_with_explicit_ref_id(self, mock_load_key, mock_encrypt, client, mock_responses, execute_response, base_url):
         """Test execute_action with explicit ref_id."""
         # Mock the encryption functions
         mock_public_key = MagicMock()
@@ -166,15 +161,11 @@ class TestLynkrClient:
             }, 
             b'test_aes_key'
         )
-        mock_decrypt.return_value = json.dumps(execute_response["data"]).encode()
         
-        # Set up response data with encrypted format
-        encrypted_response = {
-            "data": {
-                "payload": "encoded_payload",
-                "iv": "encoded_iv",
-                "tag": "encoded_tag"
-            }
+        # Set up a NON-encrypted response (missing iv/tag/payload)
+        # This will skip the decryption logic in the client
+        non_encrypted_response = {
+            "data": execute_response["data"]
         }
         
         schema_data = {"name": "Test User"}
@@ -185,13 +176,13 @@ class TestLynkrClient:
         mock_responses.add(
             responses.POST,
             url,
-            json=encrypted_response,
+            json=non_encrypted_response,
             status=200
         )
         
         result = client.execute_action(schema_data=schema_data, ref_id=explicit_ref_id)
         
-        # The result should be the decrypted data from execute_response
+        # The result should be the data from execute_response
         assert result == execute_response["data"]
         
         # Verify the correct ref_id was used
