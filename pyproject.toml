@@ -34,7 +34,7 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/Lynkr-Inc/lynkr-python-sdk"
 "Bug Tracker" = "https://github.com/Lynkr-Inc/lynkr-python-sdk/issues"
-"Documentation" = "https://lynkr.ca/docs/sdk/python"
+"Documentation" = "https://docs.lynkr.ca/"
 
 [project.optional-dependencies]
 dev = [
@@ -77,3 +77,6 @@ addopts = "--cov=lynkr --cov-report=term-missing"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"lynkr" = ["public_key.pem"]
