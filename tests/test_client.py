@@ -35,7 +35,7 @@ class TestLynkrClient:
     def test_get_schema(self, client, mock_responses, schema_response, base_url):
         """Test get_schema method."""
         request_string = "Create a new user"
-        url = urljoin(base_url, "/api/v0/schema")
+        url = urljoin(base_url, "/api/v0/schema/")
         
         mock_responses.add(
             responses.POST,
@@ -64,7 +64,7 @@ class TestLynkrClient:
     def test_get_schema_api_error(self, client, mock_responses, base_url):
         """Test get_schema with API error response."""
         request_string = "Create a new user"
-        url = urljoin(base_url, "/api/v0/schema")
+        url = urljoin(base_url, "/api/v0/schema/")
         
         error_response = {
             "error": "invalid_request",
@@ -101,7 +101,7 @@ class TestLynkrClient:
         
         schema_data = {"name": "Test User"}
         
-        url = urljoin(base_url, "/api/v0/execute")
+        url = urljoin(base_url, "/api/v0/execute/")
         
         mock_responses.add(
             responses.POST,
@@ -127,7 +127,7 @@ class TestLynkrClient:
         schema_data = {"name": "Test User"}
         explicit_ref_id = "explicit_ref_id"
         
-        url = urljoin(base_url, "/api/v0/execute")
+        url = urljoin(base_url, "/api/v0/execute/")
         
         mock_responses.add(
             responses.POST,
