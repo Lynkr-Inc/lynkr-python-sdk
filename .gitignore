@@ -6,3 +6,4 @@ src/lynkr.egg-info/PKG-INFO
 .coverage
 .env
 test_langchain
+build/

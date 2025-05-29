@@ -120,7 +120,34 @@ class LynkrClient:
             "schema": schema.to_dict()
         }
     
-    def execute_action(self, schema_data: t.Dict[str, t.Any], ref_id: t.Optional[str] = None) -> t.Dict[str, t.Any]:
+    def execute_action(self, schema_data: dict, ref_id: str = None, service: str = None):
+        """
+        Use this tool to execute actions based on a schema obtained from get_schema().
+        
+        This tool takes a schema (typically obtained from a previous get_schema call) and executes it
+        after filling in any missing information through conversations with the user or by using other tools.
+        
+        Args:
+            schema: The schema structure (dictionary) obtained from get_schema() filled with the information based on the schema guidelines and the user
+            ref_id: The reference ID from the previous get_schema call (optional)
+            service: The service name to use for filling in the schema data
+        Returns:
+            The result of executing the action defined by the filled schema
+        
+        Note: If the schema cannot be completely filled with available information, this tool will
+        automatically engage with the user to request the missing details before execution.
+        """
+        try:
+            
+            currentService = self.keys.get(service)
+
+            schema_data = {**schema_data, **currentService}
+            result = self.execute(schema_data=schema_data, ref_id=ref_id)
+            return {"Result": result}
+        except Exception as e:
+            return f"Error: {str(e)}"
+            
+    def execute(self, schema_data: t.Dict[str, t.Any], ref_id: t.Optional[str] = None) -> t.Dict[str, t.Any]:
         """
         Execute an action using the provided schema data.
         
@@ -325,7 +352,7 @@ class LynkrClient:
                 currentService = self.keys.get(service)
 
                 schema_data = {**schema_data, **currentService}
-                result = self.execute_action(schema_data=schema_data, ref_id=ref_id)
+                result = self.execute(schema_data=schema_data, ref_id=ref_id)
                 return {"Result": result}
             except Exception as e:
                 return f"Error: {str(e)}"
