@@ -4,7 +4,9 @@ pyproject.toml
 setup.py
 src/lynkr/__init__.py
 src/lynkr/client.py
+src/lynkr/crypto.py
 src/lynkr/exceptions.py
+src/lynkr/public_key.pem
 src/lynkr/schema.py
 src/lynkr.egg-info/PKG-INFO
 src/lynkr.egg-info/SOURCES.txt

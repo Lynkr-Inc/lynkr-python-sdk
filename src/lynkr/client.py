@@ -301,7 +301,7 @@ class LynkrClient:
             • Returns:
                 {
                     "ref_id":   "<unique schema ID>",
-                    "schema":   { field_name: { "type": ..., "optional": ..., "sensitive": ... }, … },
+                    "schema":   {'fields': {'required': [{'name': ...}, ...], 'optional': [{'name': ...}], 'sensitive_fields': ['x-api-key']},
                     "service":  "<integration key, e.g. 'resend', 'twilio', …>",
                     "message":  "Missing credentials for service: <service>"
                                 OR "Credentials provided for service: <service>"
@@ -309,7 +309,9 @@ class LynkrClient:
             • If you see “Missing credentials…”, ask the user for API keys before proceeding.
             """
             try:
+                print(request_string)
                 ref_id, schema, service = self.get_schema(request_string)
+                print(schema)
                 if service not in self.keys:
                     return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key", "minimum_required": get_minimum_schema(schema, True)}
                 else: 
