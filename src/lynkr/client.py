@@ -313,9 +313,9 @@ class LynkrClient:
                 ref_id, schema, service = self.get_schema(request_string)
                 print(schema)
                 if service not in self.keys:
-                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key", "minimum_required": get_minimum_schema(schema, True)}
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key"}
                 else: 
-                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided.", "minimum_required": get_minimum_schema(schema)}
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided."}
            
             except Exception as e:
                 return f"Error: {str(e)}"
