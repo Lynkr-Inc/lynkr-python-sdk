@@ -288,7 +288,7 @@ class LynkrClient:
             return json.dumps(payload, indent=2)
         # ——— Example usage ———
 
-        def get_schema(request_string: str):
+        def get_schema_langchain(request_string: str):
             """
             get_schema(request_string: str) -> dict
 
@@ -320,7 +320,7 @@ class LynkrClient:
             except Exception as e:
                 return f"Error: {str(e)}"
 
-        def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
+        def execute_schema_langchain(schema_data: dict, ref_id: str = None, service: str = None):
             """
             Use this tool to execute actions based on a schema obtained from get_schema().
             
@@ -360,13 +360,13 @@ class LynkrClient:
                 return f"Error: {str(e)}"
         tools = [
                     StructuredTool.from_function(
-                        get_schema,
-                        name="get_schema",
+                        get_schema_langchain,
+                        name="get_schema_langchain",
                         description="Translate a single, precise natural-language instruction into a structured schema."
                     ),
                     StructuredTool.from_function(
-                        execute_schema,
-                        name="execute_schema",
+                        execute_schema_langchain,
+                        name="execute_schema_langchain",
                         description="Execute a fully-populated schema against the specified external integration."
                     ),
                 ] 
