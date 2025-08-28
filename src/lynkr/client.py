@@ -288,7 +288,7 @@ class LynkrClient:
             return json.dumps(payload, indent=2)
         # ——— Example usage ———
 
-        def get_schema(request_string: str):
+        def get_schema_langchain(request_string: str):
             """
             get_schema(request_string: str) -> dict
 
@@ -301,7 +301,7 @@ class LynkrClient:
             • Returns:
                 {
                     "ref_id":   "<unique schema ID>",
-                    "schema":   { field_name: { "type": ..., "optional": ..., "sensitive": ... }, … },
+                    "schema":   {'fields': {'required': [{'name': ...}, ...], 'optional': [{'name': ...}], 'sensitive_fields': ['x-api-key']},
                     "service":  "<integration key, e.g. 'resend', 'twilio', …>",
                     "message":  "Missing credentials for service: <service>"
                                 OR "Credentials provided for service: <service>"
@@ -309,16 +309,18 @@ class LynkrClient:
             • If you see “Missing credentials…”, ask the user for API keys before proceeding.
             """
             try:
+                print(request_string)
                 ref_id, schema, service = self.get_schema(request_string)
+                print(schema)
                 if service not in self.keys:
-                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key", "minimum_required": get_minimum_schema(schema, True)}
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "No service key is provided schema data for execute actions should include schema key"}
                 else: 
-                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided.", "minimum_required": get_minimum_schema(schema)}
+                    return {"ref_id":ref_id, "schema":schema, "service":service, "message": "The service secrets are provided."}
            
             except Exception as e:
                 return f"Error: {str(e)}"
 
-        def execute_schema(schema_data: dict, ref_id: str = None, service: str = None):
+        def execute_schema_langchain(schema_data: dict, ref_id: str = None, service: str = None):
             """
             Use this tool to execute actions based on a schema obtained from get_schema().
             
@@ -358,13 +360,13 @@ class LynkrClient:
                 return f"Error: {str(e)}"
         tools = [
                     StructuredTool.from_function(
-                        get_schema,
-                        name="get_schema",
+                        get_schema_langchain,
+                        name="get_schema_langchain",
                         description="Translate a single, precise natural-language instruction into a structured schema."
                     ),
                     StructuredTool.from_function(
-                        execute_schema,
-                        name="execute_schema",
+                        execute_schema_langchain,
+                        name="execute_schema_langchain",
                         description="Execute a fully-populated schema against the specified external integration."
                     ),
                 ] 

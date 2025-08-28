@@ -1,12 +1,12 @@
 Metadata-Version: 2.4
 Name: lynkr
-Version: 0.1.4
+Version: 0.1.10
 Summary: Official Python SDK for Lynkr
 Author-email: "Lynkr Inc." <info@lynkr.ca>
 License: MIT
 Project-URL: Homepage, https://github.com/Lynkr-Inc/lynkr-python-sdk
 Project-URL: Bug Tracker, https://github.com/Lynkr-Inc/lynkr-python-sdk/issues
-Project-URL: Documentation, https://lynkr.ca/docs/sdk/python
+Project-URL: Documentation, https://docs.lynkr.ca/
 Keywords: api,sdk,client
 Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
@@ -23,6 +23,7 @@ Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: requests>=2.25.0
 Requires-Dist: langchain
+Requires-Dist: cryptography
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
